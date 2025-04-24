@@ -1,9 +1,13 @@
 <?php
 session_start();
+require 'vendor/autoload.php'; // If you’re using Composer
+require 'db_connection.php';   // Assume you have $pdo defined here
 
-define("USERNAME", "admin");
-define("PASSWORD", "password123");
+// Optional hardcoded admin login
+define("ADMIN_USERNAME", "admin");
+define("ADMIN_PASSWORD", "password123");
 
+// Redirect if already logged in
 if (isset($_SESSION["logged_in"]) && $_SESSION["logged_in"] === true) {
     header("Location: homepage.php");
     exit();
@@ -12,29 +16,52 @@ if (isset($_SESSION["logged_in"]) && $_SESSION["logged_in"] === true) {
 $error = "";
 $saved_username = isset($_COOKIE["remember_username"]) ? $_COOKIE["remember_username"] : "";
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $username = isset($_POST["username"]) ? $_POST["username"] : "";
-    $password = isset($_POST["password"]) ? $_POST["password"] : "";
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
+    $username = $_POST['username'] ?? "";
+    $password = $_POST['password'] ?? "";
 
-    if ($username === USERNAME && $password === PASSWORD) {
+    // Admin login fallback
+    if ($username === ADMIN_USERNAME && $password === ADMIN_PASSWORD) {
         $_SESSION["logged_in"] = true;
         $_SESSION["username"] = $username;
-
-        if (isset($_POST["remember"])) {
-            // Set a persistent cookie (30 days)
-            setcookie("remember_username", $username, time() + (86400 * 30), "/");
-        } else {
-            // Set a session cookie (deleted on browser close)
-            setcookie("remember_username", $username, time() - 3600, "/");
-        }
-
+        handleRememberMe($username);
         header("Location: homepage.php");
         exit();
+    }
+
+    // User login from database
+    $stmt = $pdo->prepare("SELECT user_id, password, is_verified FROM users WHERE username = ?");
+    $stmt->execute([$username]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($user) {
+        if ($user['is_verified'] == 0) {
+            $error = "Tài khoản chưa được xác minh. Vui lòng kiểm tra email để xác minh.";
+        } elseif (password_verify($password, $user['password'])) {
+            $_SESSION["logged_in"] = true;
+            $_SESSION["username"] = $username;
+            $_SESSION["user_id"] = $user['user_id'];
+            handleRememberMe($username);
+            header("Location: homepage.php");
+            exit();
+        } else {
+            $error = "Tên người dùng hoặc mật khẩu không đúng.";
+        }
     } else {
-        $error = "Invalid username or password.";
+        $error = "Tên người dùng hoặc mật khẩu không đúng.";
+    }
+}
+
+// Cookie handling for "Remember Me"
+function handleRememberMe($username) {
+    if (isset($_POST["remember"])) {
+        setcookie("remember_username", $username, time() + (86400 * 30), "/");
+    } else {
+        setcookie("remember_username", "", time() - 3600, "/");
     }
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">

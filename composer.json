@@ -1,0 +1,12 @@
+{
+    "name": "vendor/autoload",
+    "description": "Dependancy",
+    "autoload": {
+        "psr-4": {
+            "Vendor\\Autoload\\": "src/"
+        }
+    },
+    "require": {
+        "phpmailer/phpmailer": "^6.9"
+    }
+}

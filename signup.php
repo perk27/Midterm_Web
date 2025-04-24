@@ -1,3 +1,75 @@
+<?php
+require 'vendor/autoload.php';
+require 'db_connection.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
+    $username = trim($_POST['username']);
+    $email = filter_var(trim($_POST['email']), FILTER_VALIDATE_EMAIL);
+    $password = $_POST['password'];
+
+    if (!$email) {
+        echo "Invalid email address.";
+        exit;
+    }
+
+    // Check if username or email already exists
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = ? OR email = ?");
+    $stmt->execute([$username, $email]);
+    $count = $stmt->fetchColumn();
+
+    if ($count > 0) {
+        echo "The username or email already exists. Please choose a different one.";
+    } else {
+        // Hash password
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+        // Insert user into database with temporary unverified status
+        $stmt = $pdo->prepare("INSERT INTO users (username, email, password, is_verified) VALUES (?, ?, ?, 0)");
+        
+        if ($stmt->execute([$username, $email, $hashedPassword])) {
+            $userId = $pdo->lastInsertId();
+
+            // Generate and save a verification token
+            $verifyToken = bin2hex(random_bytes(16));
+            $verifyLink = "http://localhost/verify.php?token=$verifyToken";
+
+            // Save token in database
+            $stmt = $pdo->prepare("UPDATE users SET verification_token = ? WHERE user_id = ?");
+            $stmt->execute([$verifyToken, $userId]);
+
+            // Send verification email
+            $mail = new PHPMailer(true);
+            try {
+                $mail->CharSet = 'UTF-8';
+                $mail->isSMTP();
+                $mail->Host = 'smtp.gmail.com';
+                $mail->SMTPAuth = true;
+                $mail->Username = 'your_email@example.com';       // Replace with your Gmail
+                $mail->Password = 'your_email_password';          // Use App Password if 2FA enabled
+                $mail->SMTPSecure = 'tls';
+                $mail->Port = 587;
+
+                $mail->setFrom('your_email@example.com', 'Your Name');
+                $mail->addAddress($email, htmlspecialchars($username));
+                $mail->isHTML(true);
+                $mail->Subject = 'Verify your account';
+                $mail->Body    = "Please click the following link to verify your account: <a href='$verifyLink'>Verify Account</a>";
+
+                $mail->send();
+                echo "Registration successful! Please check your email to verify your account.";
+            } catch (Exception $e) {
+                echo "Verification email could not be sent. Mailer Error: {$mail->ErrorInfo}";
+            }
+        } else {
+            echo "Registration failed. Please try again.";
+        }
+    }
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
