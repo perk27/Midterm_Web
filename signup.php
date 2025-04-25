@@ -1,4 +1,9 @@
 <?php
+//Test message Remove later
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 require 'vendor/autoload.php';
 require 'db_connection.php';
 
@@ -19,7 +24,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = ? OR email = ?");
     $stmt->execute([$username, $email]);
     $count = $stmt->fetchColumn();
-
+    
+    if ($_POST['password'] !== $_POST['confirm_password']) {
+      echo "Passwords do not match.";
+      exit;
+  }
+  
     if ($count > 0) {
         echo "The username or email already exists. Please choose a different one.";
     } else {
@@ -130,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
         <?php endif; ?>
 
         <div class="form-group text-center">
-          <button type="submit" class="btn btn-primary px-5">Sign Up</button>
+          <button type="submit" name ="register" class="btn btn-primary px-5">Sign Up</button>
         </div>
 
         <div class="form-group text-center">
