@@ -10,14 +10,14 @@ require 'db_connection.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
+$error = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $username = trim($_POST['username']);
     $email = filter_var(trim($_POST['email']), FILTER_VALIDATE_EMAIL);
     $password = $_POST['password'];
 
     if (!$email) {
-        echo "Invalid email address.";
-        exit;
+      $error[] = "Invalid email address.";
     }
 
     // Check if username or email already exists
@@ -26,13 +26,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
     $count = $stmt->fetchColumn();
     
     if ($_POST['password'] !== $_POST['confirm_password']) {
-      echo "Passwords do not match.";
-      exit;
+      $error[] = "Passwords do not match.";
   }
   
     if ($count > 0) {
-        echo "The username or email already exists. Please choose a different one.";
+        $error[] = "The username or email already exists. Please choose a different one.";
     } else {
+        if(empty($error)){
         // Hash password
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
@@ -69,13 +69,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                 $mail->Body    = "Please click the following link to verify your account: <a href='$verifyLink'>Verify Account</a>";
 
                 $mail->send();
-                echo "Registration successful! Please check your email to verify your account.";
+                $success = "Registration successful! Please check your email to verify your account.";
             } catch (Exception $e) {
-                echo "Verification email could not be sent. Mailer Error: {$mail->ErrorInfo}";
+                $error[] = "Verification email could not be sent. Mailer Error: {$mail->ErrorInfo}";
             }
         } else {
-            echo "Registration failed. Please try again.";
+            $error[] = "Registration failed. Please try again.";
         }
+      }
     }
 }
 ?>
@@ -134,7 +135,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
 
         <!-- Error/Success Messages -->
         <?php if (!empty($error)) : ?>
-          <div class="alert alert-danger"><?php echo $error; ?></div>
+          <div class="alert alert-danger">
+            <ul class="mb-0">
+              <?php foreach ($error as $e) : ?>
+                <li><?php echo htmlspecialchars($e); ?></li>
+              <?php endforeach; ?>
+            </ul>
+          </div>
         <?php elseif (!empty($success)) : ?>
           <div class="alert alert-success"><?php echo $success; ?></div>
         <?php endif; ?>
@@ -150,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
 
     </div>
   </div>
-</div>
+</div>  
 
 </body>
 </html>
