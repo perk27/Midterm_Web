@@ -47,13 +47,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                 $mail->isSMTP();  
                 $mail->Host = 'smtp.gmail.com'; // SMTP server address
                 $mail->SMTPAuth = true;  
-                $mail->Username = 'hieu7a6.2005@gmail.com'; // email account
-                $mail->Password = 'Mhiuu@1805'; // email password
+                $mail->Username = 'pmhieu180125@gmail.com'; // email account
+                $mail->Password = 'udcx icth xwbe soin'; // email password
                 $mail->SMTPSecure = 'tls'; // sercure 
                 $mail->Port = 587; // SMTP Port 
 
                 // Email content
-                $mail->setFrom('hieu7a6.2005@gmail.com', 'verification');  
+                $mail->setFrom('pmhieu180125@gmail.com', 'verification');  
                 $mail->addAddress($email, $username);  
                 $mail->isHTML(true);  
                 $mail->Subject = 'Verify your account';  
@@ -68,3 +68,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             echo "register unsuccessfully, please retry.";  
         }  
     }  
+}
