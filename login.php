@@ -1,66 +1,73 @@
 <?php
 session_start();
-require 'vendor/autoload.php'; // If you’re using Composer
-require 'db_connection.php';   // Assume you have $pdo defined here
 
-// Optional hardcoded admin login
+require 'vendor/autoload.php'; // Load Composer libraries (like PHPMailer, etc.)
+require 'db_connection.php';   // Database connection ($pdo should be defined here)
+
+// Optional: Hardcoded Admin Login
 define("ADMIN_USERNAME", "admin");
 define("ADMIN_PASSWORD", "password123");
 
-// Redirect if already logged in
+// If already logged in, redirect to homepage
 if (isset($_SESSION["logged_in"]) && $_SESSION["logged_in"] === true) {
     header("Location: homepage.php");
     exit();
 }
 
 $error = "";
-$saved_username = isset($_COOKIE["remember_username"]) ? $_COOKIE["remember_username"] : "";
+$saved_username = $_COOKIE["remember_username"] ?? "";
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
-    $username = $_POST['username'] ?? "";
+    $username = trim($_POST['username'] ?? "");
     $password = $_POST['password'] ?? "";
 
-    // Admin login fallback
-    if ($username === ADMIN_USERNAME && $password === ADMIN_PASSWORD) {
-        $_SESSION["logged_in"] = true;
-        $_SESSION["username"] = $username;
-        handleRememberMe($username);
-        header("Location: homepage.php");
-        exit();
-    }
-
-    // User login from database
-    $stmt = $pdo->prepare("SELECT user_id, password, is_verified FROM users WHERE username = ?");
-    $stmt->execute([$username]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($user) {
-        if ($user['is_verified'] == 0) {
-            $error = "Tài khoản chưa được xác minh. Vui lòng kiểm tra email để xác minh.";
-        } elseif (password_verify($password, $user['password'])) {
+    if ($username === "" || $password === "") {
+        $error = "Please fill in both username and password.";
+    } else {
+        // Admin login fallback
+        if ($username === ADMIN_USERNAME && $password === ADMIN_PASSWORD) {
             $_SESSION["logged_in"] = true;
             $_SESSION["username"] = $username;
-            $_SESSION["user_id"] = $user['user_id'];
             handleRememberMe($username);
             header("Location: homepage.php");
             exit();
-        } else {
-            $error = "Tên người dùng hoặc mật khẩu không đúng.";
         }
-    } else {
-        $error = "Tên người dùng hoặc mật khẩu không đúng.";
+
+        // Regular user login
+        $stmt = $pdo->prepare("SELECT user_id, password, is_verified FROM users WHERE username = ?");
+        $stmt->execute([$username]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($user) {
+            if ((int)$user['is_verified'] !== 1) {
+                $error = "Your account has not been verified yet. Please check your email for the verification link.";
+            } elseif (password_verify($password, $user['password'])) {
+                // Successful login
+                $_SESSION["logged_in"] = true;
+                $_SESSION["username"] = $username;
+                $_SESSION["user_id"] = $user['user_id'];
+                handleRememberMe($username);
+                header("Location: homepage.php");
+                exit();
+            } else {
+                $error = "Incorrect username or password.";
+            }
+        } else {
+            $error = "Incorrect username or password.";
+        }
     }
 }
 
-// Cookie handling for "Remember Me"
+// Handle the "Remember Me" functionality
 function handleRememberMe($username) {
     if (isset($_POST["remember"])) {
-        setcookie("remember_username", $username, time() + (86400 * 30), "/");
+        setcookie("remember_username", $username, time() + (86400 * 30), "/"); // 30 days
     } else {
-        setcookie("remember_username", "", time() - 3600, "/");
+        setcookie("remember_username", "", time() - 3600, "/"); // Expire cookie
     }
 }
 ?>
+
 
 
 <!DOCTYPE html>
@@ -112,11 +119,11 @@ function handleRememberMe($username) {
 
         <!-- Error message block (only shown if $error is not empty) -->
         <?php if (!empty($error)) : ?>
-          <div class="alert alert-danger"><?php echo $error; ?></div>
+          <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
 
         <div class="form-group text-center">
-          <button type="submit" class="btn btn-success px-5">Login</button>
+          <button type="submit" name = "login" class="btn btn-success px-5">Login</button>
         </div>
 
         <div class="form-group text-center">
