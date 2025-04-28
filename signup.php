@@ -57,12 +57,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
                 $mail->isSMTP();
                 $mail->Host = 'smtp.gmail.com';
                 $mail->SMTPAuth = true;
-                $mail->Username = 'your_email@example.com';       // Replace with your Gmail
-                $mail->Password = 'your_email_password';          // Use App Password if 2FA enabled
+                $mail->Username = 'pmhieu180125@gmail.com';       // Replace with your Gmail
+                $mail->Password = 'udcxicthxwbesoin';          // Use App Password if 2FA enabled
                 $mail->SMTPSecure = 'tls';
                 $mail->Port = 587;
 
-                $mail->setFrom('your_email@example.com', 'Your Name');
+                $mail->setFrom('pmhieu180125@gmail.com', 'Verify your email');
                 $mail->addAddress($email, htmlspecialchars($username));
                 $mail->isHTML(true);
                 $mail->Subject = 'Verify your account';

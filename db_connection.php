@@ -1,6 +1,6 @@
 <?php
 $host = 'localhost';
-$dbname = 'midterm';          // Replace with your actual DB name
+$dbname = 'midterm';          
 $db_username = 'root';        // Default username for XAMPP
 $db_password = '';            // Default password is empty
 
