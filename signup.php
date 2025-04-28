@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
 
             // Generate and save a verification token
             $verifyToken = bin2hex(random_bytes(16));
-            $verifyLink = "http://localhost/verify.php?token=$verifyToken";
+            $verifyLink = "http://172.25.93.104/Midterm/verify.php?token=$verifyToken";
 
             // Save token in database
             $stmt = $pdo->prepare("UPDATE users SET verification_token = ? WHERE user_id = ?");
