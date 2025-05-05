@@ -42,13 +42,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             if ((int)$user['is_verified'] !== 1) {
                 $error = "Your account has not been verified yet. Please check your email for the verification link.";
             } elseif (password_verify($password, $user['password'])) {
-                // Successful login
-                $_SESSION["logged_in"] = true;
+              $_SESSION["temp_user_id"] = $user['user_id'];
+              $_SESSION["temp_username"] = $username;
+              $_SESSION["remember_me"] = isset($_POST["remember"]);
+          
+              // Redirect to 2FA page if TOTP is set
+              $stmt = $pdo->prepare("SELECT totp_secret FROM users WHERE user_id = ?");
+              $stmt->execute([$user['user_id']]);
+              $row = $stmt->fetch(PDO::FETCH_ASSOC);
+          
+              if (!empty($row['totp_secret'])) {
+                  $_SESSION["totp_secret"] = $row['totp_secret'];
+                  $_SESSION["2fa_totp_user"] = $user['user_id'];
+                  header("Location: verify_totp.php"); // A new page you'll create
+                  exit();
+              } else {
                 $_SESSION["username"] = $username;
                 $_SESSION["user_id"] = $user['user_id'];
                 handleRememberMe($username);
-                header("Location: homepage.php");
+                
+                // Check if user has a TOTP secret
+                $check = $pdo->prepare("SELECT totp_secret FROM users WHERE user_id = ?");
+                $check->execute([$user['user_id']]);
+                $secret = $check->fetchColumn();
+                
+                if (!$secret) {
+                    header("Location: enable_2fa.php");
+                } else {
+                    $_SESSION["require_totp"] = true;
+                    header("Location: verify_totp.php");
+                }
                 exit();
+              }         
             } else {
                 $error = "Incorrect username or password.";
             }
