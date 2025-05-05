@@ -43,12 +43,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
             $userId = $pdo->lastInsertId();
 
             // Generate and save a verification token
-            $verifyToken = bin2hex(random_bytes(16));
+            $verifyToken = bin2hex(random_bytes(32));
+            $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
             $verifyLink = "http://localhost/Midterm/verify.php?token=$verifyToken";
 
             // Save token in database
-            $stmt = $pdo->prepare("UPDATE users SET verification_token = ? WHERE user_id = ?");
-            $stmt->execute([$verifyToken, $userId]);
+            $stmt = $pdo->prepare("INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES (?, ?, ?)");
+            $stmt->execute([$userId, $verifyToken, $expiresAt]);
 
             // Send verification email
             $mail = new PHPMailer(true);
