@@ -1,40 +1,99 @@
 <?php
 session_start();
 
-define("USERNAME", "admin");
-define("PASSWORD", "password123");
+require 'vendor/autoload.php'; // Load Composer libraries (like PHPMailer, etc.)
+require 'db_connection.php';   // Database connection ($pdo should be defined here)
 
+// Optional: Hardcoded Admin Login
+define("ADMIN_USERNAME", "admin");
+define("ADMIN_PASSWORD", "password123");
+
+// If already logged in, redirect to homepage
 if (isset($_SESSION["logged_in"]) && $_SESSION["logged_in"] === true) {
     header("Location: homepage.php");
     exit();
 }
 
 $error = "";
-$saved_username = isset($_COOKIE["remember_username"]) ? $_COOKIE["remember_username"] : "";
+$saved_username = $_COOKIE["remember_username"] ?? "";
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $username = isset($_POST["username"]) ? $_POST["username"] : "";
-    $password = isset($_POST["password"]) ? $_POST["password"] : "";
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
+    $username = trim($_POST['username'] ?? "");
+    $password = $_POST['password'] ?? "";
 
-    if ($username === USERNAME && $password === PASSWORD) {
-        $_SESSION["logged_in"] = true;
-        $_SESSION["username"] = $username;
-
-        if (isset($_POST["remember"])) {
-            // Set a persistent cookie (30 days)
-            setcookie("remember_username", $username, time() + (86400 * 30), "/");
-        } else {
-            // Set a session cookie (deleted on browser close)
-            setcookie("remember_username", $username, time() - 3600, "/");
+    if ($username === "" || $password === "") {
+        $error = "Please fill in both username and password.";
+    } else {
+        // Admin login fallback
+        if ($username === ADMIN_USERNAME && $password === ADMIN_PASSWORD) {
+            $_SESSION["logged_in"] = true;
+            $_SESSION["username"] = $username;
+            handleRememberMe($username);
+            header("Location: homepage.php");
+            exit();
         }
 
-        header("Location: homepage.php");
-        exit();
+        // Regular user login
+        $stmt = $pdo->prepare("SELECT user_id, password, is_verified FROM users WHERE username = ?");
+        $stmt->execute([$username]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($user) {
+            if ((int)$user['is_verified'] !== 1) {
+                $error = "Your account has not been verified yet. Please check your email for the verification link.";
+            } elseif (password_verify($password, $user['password'])) {
+              $_SESSION["temp_user_id"] = $user['user_id'];
+              $_SESSION["temp_username"] = $username;
+              $_SESSION["remember_me"] = isset($_POST["remember"]);
+          
+              // Redirect to 2FA page if TOTP is set
+              $stmt = $pdo->prepare("SELECT totp_secret FROM users WHERE user_id = ?");
+              $stmt->execute([$user['user_id']]);
+              $row = $stmt->fetch(PDO::FETCH_ASSOC);
+          
+              if (!empty($row['totp_secret'])) {
+                  $_SESSION["totp_secret"] = $row['totp_secret'];
+                  $_SESSION["2fa_totp_user"] = $user['user_id'];
+                  header("Location: verify_totp.php"); // A new page you'll create
+                  exit();
+              } else {
+                $_SESSION["username"] = $username;
+                $_SESSION["user_id"] = $user['user_id'];
+                handleRememberMe($username);
+                
+                // Check if user has a TOTP secret
+                $check = $pdo->prepare("SELECT totp_secret FROM users WHERE user_id = ?");
+                $check->execute([$user['user_id']]);
+                $secret = $check->fetchColumn();
+                
+                if (!$secret) {
+                    header("Location: enable_2fa.php");
+                } else {
+                    $_SESSION["require_totp"] = true;
+                    header("Location: verify_totp.php");
+                }
+                exit();
+              }         
+            } else {
+                $error = "Incorrect username or password.";
+            }
+        } else {
+            $error = "Incorrect username or password.";
+        }
+    }
+}
+
+// Handle the "Remember Me" functionality
+function handleRememberMe($username) {
+    if (isset($_POST["remember"])) {
+        setcookie("remember_username", $username, time() + (86400 * 30), "/"); // 30 days
     } else {
-        $error = "Invalid username or password.";
+        setcookie("remember_username", "", time() - 3600, "/"); // Expire cookie
     }
 }
 ?>
+
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -85,11 +144,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         <!-- Error message block (only shown if $error is not empty) -->
         <?php if (!empty($error)) : ?>
-          <div class="alert alert-danger"><?php echo $error; ?></div>
+          <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
         <?php endif; ?>
 
         <div class="form-group text-center">
-          <button type="submit" class="btn btn-success px-5">Login</button>
+          <button type="submit" name = "login" class="btn btn-success px-5">Login</button>
         </div>
 
         <div class="form-group text-center">

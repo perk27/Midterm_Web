@@ -1,3 +1,86 @@
+<?php
+//Test message Remove later
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+require 'vendor/autoload.php';
+require 'db_connection.php';
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+$error = [];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register'])) {
+    $username = trim($_POST['username']);
+    $email = filter_var(trim($_POST['email']), FILTER_VALIDATE_EMAIL);
+    $password = $_POST['password'];
+
+    if (!$email) {
+      $error[] = "Invalid email address.";
+    }
+
+    // Check if username or email already exists
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = ? OR email = ?");
+    $stmt->execute([$username, $email]);
+    $count = $stmt->fetchColumn();
+    
+    if ($_POST['password'] !== $_POST['confirm_password']) {
+      $error[] = "Passwords do not match.";
+  }
+  
+    if ($count > 0) {
+        $error[] = "The username or email already exists. Please choose a different one.";
+    } else {
+        if(empty($error)){
+        // Hash password
+        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+
+        // Insert user into database with temporary unverified status
+        $stmt = $pdo->prepare("INSERT INTO users (username, email, password, is_verified) VALUES (?, ?, ?, 0)");
+        
+        if ($stmt->execute([$username, $email, $hashedPassword])) {
+            $userId = $pdo->lastInsertId();
+
+            // Generate and save a verification token
+            $verifyToken = bin2hex(random_bytes(16));
+            $verifyLink = "http://localhost/Midterm/verify.php?token=$verifyToken";
+
+            // Save token in database
+            $stmt = $pdo->prepare("UPDATE users SET verification_token = ? WHERE user_id = ?");
+            $stmt->execute([$verifyToken, $userId]);
+
+            // Send verification email
+            $mail = new PHPMailer(true);
+            try {
+                $mail->CharSet = 'UTF-8';
+                $mail->isSMTP();
+                $mail->Host = 'smtp.gmail.com';
+                $mail->SMTPAuth = true;
+                $mail->Username = 'pmhieu180125@gmail.com';       // Replace with your Gmail
+                $mail->Password = 'udcxicthxwbesoin';          // Use App Password if 2FA enabled
+                $mail->SMTPSecure = 'tls';
+                $mail->Port = 587;
+
+                $mail->setFrom('pmhieu180125@gmail.com', 'Verify your email');
+                $mail->addAddress($email, htmlspecialchars($username));
+                $mail->isHTML(true);
+                $mail->Subject = 'Verify your account';
+                $mail->Body    = "Please click the following link to verify your account: <a href='$verifyLink'>Verify Account</a>";
+
+                $mail->send();
+                $success = "Registration successful! Please check your email to verify your account.";
+            } catch (Exception $e) {
+                $error[] = "Verification email could not be sent. Mailer Error: {$mail->ErrorInfo}";
+            }
+        } else {
+            $error[] = "Registration failed. Please try again.";
+        }
+      }
+    }
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -52,13 +135,19 @@
 
         <!-- Error/Success Messages -->
         <?php if (!empty($error)) : ?>
-          <div class="alert alert-danger"><?php echo $error; ?></div>
+          <div class="alert alert-danger">
+            <ul class="mb-0">
+              <?php foreach ($error as $e) : ?>
+                <li><?php echo htmlspecialchars($e); ?></li>
+              <?php endforeach; ?>
+            </ul>
+          </div>
         <?php elseif (!empty($success)) : ?>
           <div class="alert alert-success"><?php echo $success; ?></div>
         <?php endif; ?>
 
         <div class="form-group text-center">
-          <button type="submit" class="btn btn-primary px-5">Sign Up</button>
+          <button type="submit" name ="register" class="btn btn-primary px-5">Sign Up</button>
         </div>
 
         <div class="form-group text-center">
@@ -68,7 +157,7 @@
 
     </div>
   </div>
-</div>
+</div>  
 
 </body>
 </html>
