@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
         }
 
         // Regular user login
-        $stmt = $pdo->prepare("SELECT user_id, password, is_verified FROM users WHERE username = ?");
+        $stmt = $pdo->prepare("SELECT user_id, password, is_verified, two_factor_enabled FROM users WHERE username = ?");
         $stmt->execute([$username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -42,38 +42,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
             if ((int)$user['is_verified'] !== 1) {
                 $error = "Your account has not been verified yet. Please check your email for the verification link.";
             } elseif (password_verify($password, $user['password'])) {
-              $_SESSION["temp_user_id"] = $user['user_id'];
-              $_SESSION["temp_username"] = $username;
-              $_SESSION["remember_me"] = isset($_POST["remember"]);
-          
-              // Redirect to 2FA page if TOTP is set
-              $stmt = $pdo->prepare("SELECT totp_secret FROM users WHERE user_id = ?");
-              $stmt->execute([$user['user_id']]);
-              $row = $stmt->fetch(PDO::FETCH_ASSOC);
-          
-              if (!empty($row['totp_secret'])) {
-                  $_SESSION["totp_secret"] = $row['totp_secret'];
-                  $_SESSION["2fa_totp_user"] = $user['user_id'];
-                  header("Location: verify_totp.php"); // A new page you'll create
-                  exit();
-              } else {
-                $_SESSION["username"] = $username;
-                $_SESSION["user_id"] = $user['user_id'];
-                handleRememberMe($username);
-                
-                // Check if user has a TOTP secret
-                $check = $pdo->prepare("SELECT totp_secret FROM users WHERE user_id = ?");
-                $check->execute([$user['user_id']]);
-                $secret = $check->fetchColumn();
-                
-                if (!$secret) {
-                    header("Location: enable_2fa.php");
+                $_SESSION["temp_user_id"] = $user['user_id'];
+                $_SESSION["temp_username"] = $username;
+                $_SESSION["remember_me"] = isset($_POST["remember"]);
+
+                // Check if two-factor authentication is enabled
+                if ($user['two_factor_enabled']) {
+                    // Redirect to 2FA page if TOTP is set
+                    $stmt = $pdo->prepare("SELECT totp_secret FROM users WHERE user_id = ?");
+                    $stmt->execute([$user['user_id']]);
+                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                    if (!empty($row['totp_secret'])) {
+                        $_SESSION["totp_secret"] = $row['totp_secret'];
+                        $_SESSION["2fa_totp_user"] = $user['user_id'];
+                        header("Location: verify_totp.php");
+                        exit();
+                    }
                 } else {
-                    $_SESSION["require_totp"] = true;
-                    header("Location: verify_totp.php");
+                    // If 2FA is not enabled, log in directly
+                    $_SESSION["logged_in"] = true;
+                    $_SESSION["username"] = $username;
+                    $_SESSION["user_id"] = $user['user_id'];
+                    handleRememberMe($username);
+                    header("Location: homepage.php");
+                    exit();
                 }
-                exit();
-              }         
             } else {
                 $error = "Incorrect username or password.";
             }
@@ -92,8 +86,6 @@ function handleRememberMe($username) {
     }
 }
 ?>
-
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -148,7 +140,7 @@ function handleRememberMe($username) {
         <?php endif; ?>
 
         <div class="form-group text-center">
-          <button type="submit" name = "login" class="btn btn-success px-5">Login</button>
+          <button type="submit" name="login" class="btn btn-success px-5">Login</button>
         </div>
 
         <div class="form-group text-center">
@@ -162,4 +154,3 @@ function handleRememberMe($username) {
 
 </body>
 </html>
-

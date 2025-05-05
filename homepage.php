@@ -67,9 +67,10 @@ if (isset($_GET["logged_out"]) && $_GET["logged_out"] == "true") {
     <div class="card mb-4">
         <div class="card-header">Two-Factor Authentication</div>
         <div class="card-body">
-            <form action="toggle_2fa.php" method="POST">
+            <p>Status: <strong><?= $user_has_2fa_enabled ? 'Enabled' : 'Disabled' ?></strong></p>
+            <form id="toggle-2fa-form" action="toggle_2fa.php" method="POST">
                 <input type="hidden" name="action" value="<?= $user_has_2fa_enabled ? 'disable' : 'enable' ?>">
-                <button type="submit" class="btn btn-<?= $user_has_2fa_enabled ? 'warning' : 'success' ?>">
+                <button type="submit" class="btn <?= $user_has_2fa_enabled ? 'btn-warning' : 'btn-success' ?>">
                     <?= $user_has_2fa_enabled ? 'Disable 2FA' : 'Enable 2FA' ?>
                 </button>
             </form>
@@ -78,7 +79,8 @@ if (isset($_GET["logged_out"]) && $_GET["logged_out"] == "true") {
 
     <!-- Delete Account -->
     <div class="card mb-4 border-danger">
-        <div class="card-header text-danger">Danger Zone</div>
+        <div class=" charities:
+card-header text-danger">Danger Zone</div>
         <div class="card-body">
             <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">Delete Account</button>
         </div>
@@ -105,5 +107,19 @@ if (isset($_GET["logged_out"]) && $_GET["logged_out"] == "true") {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#toggle-2fa-form').on('submit', function(e) {
+            const action = $(this).find('input[name="action"]').val();
+            const confirmMessage = action === 'enable' 
+                ? 'Are you sure you want to enable Two-Factor Authentication?'
+                : 'Are you sure you want to disable Two-Factor Authentication?';
+            
+            if (!confirm(confirmMessage)) {
+                e.preventDefault();
+            }
+        });
+    });
+</script>
 </body>
 </html>
