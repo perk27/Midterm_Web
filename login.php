@@ -144,7 +144,8 @@ function handleRememberMe($username) {
         </div>
 
         <div class="form-group text-center">
-          <p class="mb-0">Forgot password? <a href="#">Click here</a></p>
+          <p class="mb-0">Forgot password? <a href="email_verification.php">Click here</a></p>
+          <p class="mb-0">Don't have an account? <a href="signup.php">Sign up here</a></p>
         </div>
       </form>
 
