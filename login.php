@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                 $_SESSION["remember_me"] = isset($_POST["remember"]);
 
                 // Check if two-factor authentication is enabled
-                if ($user['two_factor_enabled']) {
+                if ($user['two_factor_enabled'] === 1) {
                     // Redirect to 2FA page if TOTP is set
                     $stmt = $pdo->prepare("SELECT totp_secret FROM users WHERE user_id = ?");
                     $stmt->execute([$user['user_id']]);
