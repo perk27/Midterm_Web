@@ -1,0 +1,119 @@
+-- File SQL cho cơ sở dữ liệu của ứng dụng ghi chú (notes.php)
+-- Có thể copy và paste trực tiếp vào phpMyAdmin để tạo bảng và kiểm tra
+
+-- 1. Xóa bảng nếu đã tồn tại để tránh xung đột (tùy chọn)
+DROP TABLE IF EXISTS note_labels;
+DROP TABLE IF EXISTS notes;
+DROP TABLE IF EXISTS labels;
+
+-- 2. Tạo bảng labels (lưu trữ các nhãn)
+CREATE TABLE labels (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 3. Tạo bảng notes (lưu trữ các ghi chú)
+CREATE TABLE notes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    image TEXT,
+    pinned TINYINT(1) DEFAULT 0,
+    password_hash VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 4. Tạo bảng note_labels (liên kết giữa ghi chú và nhãn)
+CREATE TABLE note_labels (
+    note_id INT,
+    label_id INT,
+    PRIMARY KEY (note_id, label_id),
+    FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE,
+    FOREIGN KEY (label_id) REFERENCES labels(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 5. Thêm dữ liệu mẫu để kiểm tra
+-- Thêm nhãn
+INSERT INTO labels (name) VALUES ('Công việc');
+INSERT INTO labels (name) VALUES ('Cá nhân');
+
+-- Thêm ghi chú
+INSERT INTO notes (title, content, image, pinned) VALUES 
+('Ghi chú 1', 'Nội dung ghi chú 1', NULL, 1),
+('Ghi chú 2', 'Nội dung ghi chú 2', '["uploads/image1.jpg"]', 0);
+
+-- Liên kết ghi chú với nhãn
+INSERT INTO note_labels (note_id, label_id) VALUES (1, 1);
+INSERT INTO note_labels (note_id, label_id) VALUES (2, 2);
+
+-- 6. Các truy vấn SQL được sử dụng trong file notes.php
+-- Dưới đây là các truy vấn được ứng dụng sử dụng, để tham khảo:
+
+-- 6.1. Tạo nhãn (Label Creation)
+INSERT INTO labels (name) VALUES (:name);
+
+-- 6.2. Cập nhật nhãn (Label Update)
+UPDATE labels SET name = :name WHERE id = :id;
+
+-- 6.3. Xóa nhãn (Label Deletion)
+DELETE FROM labels WHERE id = :id;
+
+-- 6.4. Tạo ghi chú (Note Creation)
+INSERT INTO notes (title, content, image, pinned) VALUES (:title, :content, :image, :pinned);
+
+-- 6.5. Gắn nhãn cho ghi chú (Attach Labels to Note)
+INSERT INTO note_labels (note_id, label_id) VALUES (:note_id, :label_id);
+
+-- 6.6. Lấy hình ảnh của ghi chú khi cập nhật (Fetch Note Image for Update)
+SELECT image FROM notes WHERE id = :id;
+
+-- 6.7. Cập nhật ghi chú (Note Update)
+UPDATE notes SET title = :title, content = :content, image = :image, pinned = :pinned WHERE id = :id;
+
+-- 6.8. Xóa nhãn khỏi ghi chú khi cập nhật (Remove Labels from Note)
+DELETE FROM note_labels WHERE note_id = :note_id;
+
+-- 6.9. Gắn lại nhãn cho ghi chú khi cập nhật (Re-attach Labels to Note)
+INSERT INTO note_labels (note_id, label_id) VALUES (:note_id, :label_id);
+
+-- 6.10. Cập nhật trạng thái ghim (Toggle Pin Status)
+UPDATE notes SET pinned = :pinned WHERE id = :id;
+
+-- 6.11. Lấy hình ảnh của ghi chú khi xóa (Fetch Note Image for Deletion)
+SELECT image FROM notes WHERE id = :id;
+
+-- 6.12. Xóa ghi chú (Note Deletion)
+DELETE FROM notes WHERE id = :id;
+
+-- 6.13. Lấy ghi chú để chỉnh sửa (Fetch Note for Editing)
+SELECT id, title, content, image, pinned, password_hash FROM notes WHERE id = :id;
+
+-- 6.14. Lấy nhãn của ghi chú (Fetch Labels of a Note)
+SELECT label_id FROM note_labels WHERE note_id = :note_id;
+
+-- 6.15. Lấy tất cả nhãn (Fetch All Labels)
+SELECT id, name FROM labels ORDER BY name ASC;
+
+-- 6.16. Đếm số ghi chú cho mỗi nhãn (Count Notes per Label)
+SELECT COUNT(*) as count FROM note_labels WHERE label_id = :label_id;
+
+-- 6.17. Lấy ghi chú theo bộ lọc nhãn (Fetch Notes with Label Filter)
+SELECT n.id, n.title, n.content, n.created_at, n.image, n.pinned, n.password_hash
+FROM notes n
+JOIN note_labels nl ON n.id = nl.note_id
+WHERE nl.label_id = :label_id
+-- [AND (n.title LIKE :search OR n.content LIKE :search)]
+ORDER BY n.pinned DESC, n.created_at DESC;
+
+-- 6.18. Lấy tất cả ghi chú không có bộ lọc nhãn (Fetch All Notes without Label Filter)
+SELECT id, title, content, created_at, image, pinned, password_hash FROM notes
+-- [WHERE title LIKE :search OR content LIKE :search]
+ORDER BY pinned DESC, created_at DESC;
+
+-- 6.19. Lấy nhãn của từng ghi chú (Fetch Labels for Each Note)
+SELECT l.id, l.name
+FROM labels l
+JOIN note_labels nl ON l.id = nl.label_id
+WHERE nl.note_id = :note_id;
+
+-- Kết thúc file SQL
