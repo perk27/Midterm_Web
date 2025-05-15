@@ -4,12 +4,14 @@ require_once 'config/db_connection.php';
 require_once 'controllers/AuthController.php';
 require_once 'controllers/UserController.php';
 require_once 'controllers/TwoFAController.php';
+require_once 'controllers/NotesController.php';
 
 $page = $_GET['page'] ?? 'login';
 
 $authController = new AuthController($pdo);
 $userController = new UserController($pdo);
 $twoFAController = new TwoFAController($pdo);
+$notesController = new NotesController($pdo);
 
 switch ($page) {
     case 'login':
@@ -44,6 +46,9 @@ switch ($page) {
         break;
     case 'verify_totp':
         $twoFAController->verifyTotp();
+        break;
+    case 'notes':
+        $notesController->index();
         break;
     default:
         $authController->login();
